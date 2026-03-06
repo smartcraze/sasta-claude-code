@@ -1,9 +1,31 @@
 {
   "name": "sasta-claude",
   "version": "1.0.0",
-  "main": "src/sdk/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./sdk": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "bin": {
-    "sasta-claude": "src/index.tsx"
+    "sasta-claude": "dist/cli.js"
+  },
+  "files": [
+      "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build",
+    "start": "bun src/index.tsx",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "module",
   "private": false,
@@ -13,7 +35,8 @@
     "@types/ink-big-text": "^1.2.4",
     "@types/ink-gradient": "^2.0.4",
     "@types/react": "^19.2.14",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "tsup": "^8.5.1"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -30,8 +53,6 @@
     "picocolors": "^1.1.1",
     "react": "^19.2.4",
     "zod": "^4.3.6"
-  },
-  "scripts": {
-    "start": "bun src/index.tsx"
   }
 }
+

@@ -1,6 +1,13 @@
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import { getToolFunctions } from '../tools/index';
 
+export type Message = {
+    id: string; 
+    role: 'user' | 'model' | 'tool' | 'system';
+    content: string;
+    isError?: boolean;
+};
+
 const SYSTEM_INSTRUCTION = `
 You are an expert, autonomous Coding Agent running in a CLI environment.
 Your goal is to assist the user with complex coding tasks, project scaffolding, debugging, and refactoring with high reliability.
