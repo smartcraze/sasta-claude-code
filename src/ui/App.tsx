@@ -143,7 +143,7 @@ const App = () => {
         return (
             <Box flexDirection="column" padding={1}>
                 <Gradient name="pastel">
-                    <BigText text="Gemini CLI" font="tiny"/>
+                    <BigText text="Sasta Claude" font="block" align="center"/>
                 </Gradient>
                 <Box borderStyle="round" borderColor="cyan" flexDirection="column" padding={1}>
                     <Text>Please enter your Gemini API Key:</Text>
@@ -159,12 +159,23 @@ const App = () => {
     }
 
     return (
-        <>
+        <>  
+            <Static items={['branding']}>
+                {() => (
+                    <Box key="branding" paddingBottom={1}>
+                        <Gradient name="rainbow">
+                            <BigText text="Sasta Claude" font="block" align="center" />
+                        </Gradient>
+                        <Text color="gray" italic>The best "Sasta" AI CLI you'll ever use.</Text>
+                    </Box>
+                )}
+            </Static>
+
             <Static items={history}>
                 {(msg: Message) => (
                     <Box key={msg.id} flexDirection="column" marginBottom={1}>
                         <Text color={msg.role === 'user' ? 'green' : msg.role === 'model' ? 'blue' : 'yellow'} bold>
-                            {msg.role === 'user' ? 'You' : msg.role === 'model' ? 'Gemini' : 'System'}:
+                            {msg.role === 'user' ? 'You' : msg.role === 'model' ? 'Sasta Claude' : 'System'}:
                         </Text>
                         <Text color={msg.isError ? 'red' : 'white'}>
                             {msg.content}
