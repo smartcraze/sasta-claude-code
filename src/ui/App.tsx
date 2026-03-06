@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Text, useInput, useApp, Static, Newline } from 'ink';
-import TextInput from 'ink-text-input';
-import Spinner from 'ink-spinner';
-import Gradient from 'ink-gradient';
-import BigText from 'ink-big-text';
-import { createLLMClient, startChat } from '../llm/gemini.ts';
-import { executeTool } from '../tools/index.ts';
+import { Box, useApp, Static, useInput } from 'ink';
+import { createAgent } from '../sdk/index';
 import { config } from 'dotenv';
 import { promises as fs } from 'node:fs';
+
+// Components
+import { Logo } from './components/Logo';
+import { InputArea } from './components/InputArea';
+import { StatusBar } from './components/StatusBar';
+import { MessageView, MessageRole } from './components/MessageView';
 
 config();
 
 type Message = {
-    id: string; // Unique ID for Static key
-    role: 'user' | 'model' | 'tool' | 'system';
+    id: string; 
+    role: MessageRole;
     content: string;
     isError?: boolean;
 };
@@ -21,22 +22,29 @@ type Message = {
 const App = () => {
     const { exit } = useApp();
     const [apiKey, setApiKey] = useState<string | null>(process.env.GEMINI_API_KEY || null);
-    const [inputKey, setInputKey] = useState('');
+    
+    // Agent State
+    const [agent, setAgent] = useState<ReturnType<typeof createAgent> | null>(null);
     const [history, setHistory] = useState<Message[]>([]);
+    
+    // UI State
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [inputValue, setInputValue] = useState('');
-    const [chatSession, setChatSession] = useState<any>(null);
+    const [cwd, setCwd] = useState(process.cwd());
 
+    // Initialize Agent
     useEffect(() => {
-        if (apiKey && !chatSession) {
-            try {
-                const model = createLLMClient(apiKey);
-                const chat = startChat(model);
-                setChatSession(chat);
-            } catch (error) {
-                // Handle initialization errors
-            }
+        if (apiKey && !agent) {
+             try {
+                const newAgent = createAgent({
+                    apiKey,
+                    modelName: process.env.GEMINI_MODEL || "gemini-2.0-flash"
+                });
+                setAgent(newAgent);
+             } catch (e) {
+                 // handle init error?
+             }
         }
     }, [apiKey]);
 
@@ -61,17 +69,17 @@ const App = () => {
     };
 
     const handleInputSubmit = async (value: string) => {
-        if (!value.trim() || !chatSession) return;
+        if (!value.trim() || !agent) return;
         
         const userMsg = value;
-        setInputValue('');
+        setInputValue(''); // Clear input
         addMessage('user', userMsg);
         
         setIsLoading(true);
         setLoadingMessage('Thinking...');
 
         try {
-            let result = await chatSession.sendMessage(userMsg);
+            let result = await agent.session.sendMessage(userMsg);
             let response = result.response;
             
             let text = '';
@@ -84,45 +92,47 @@ const App = () => {
             // Handle tool calls
             while (response.functionCalls() && response.functionCalls().length > 0) {
                 const calls = response.functionCalls();
-                const functionResponses = [];
-
                 setLoadingMessage(`Executing ${calls.length} tool(s)...`);
+
+                const functionResponses = [];
 
                 for (const call of calls) {
                      addMessage('tool', `Running tool: ${call.name}`);
                      
                      try {
-                        const output = await executeTool(call.name, call.args);
+                        const output = await agent.executeTool(call.name, call.args);
+                       
                         functionResponses.push({
                             functionResponse: {
                                 name: call.name,
                                 response: { result: output }, 
                             }
                         });
-                        // Truncate long outputs for display
-                        const displayOutput = output.length > 500 ? output.slice(0, 500) + '... (truncated)' : output;
-                        addMessage('tool', `Result: ${displayOutput}`);
                      } catch (error: any) {
-                        functionResponses.push({
+                         const err = `Error executing ${call.name}: ${error.message}`;
+                         addMessage('tool', err, true);
+                         functionResponses.push({
                             functionResponse: {
                                 name: call.name,
-                                response: { error: error.message },
+                                response: { result: err }, 
                             }
                         });
-                        addMessage('tool', `Error: ${error.message}`, true);
                      }
                 }
-                
-                setLoadingMessage('Analyzing results...');
-                result = await chatSession.sendMessage(functionResponses);
-                response = result.response;
 
-                try { 
-                    text = response.text(); 
-                    if (text) {
-                         addMessage('model', text);
-                    }
-                } catch(e) {}
+                // Send tool outputs back to model
+                if (functionResponses.length > 0) {
+                    setLoadingMessage('Analyzing tool outputs...');
+                    const nextResult = await agent.session.sendMessage(functionResponses);
+                    response = nextResult.response;
+                    
+                    try { 
+                        text = response.text(); 
+                        if (text) {
+                             addMessage('model', text);
+                        }
+                    } catch(e) {}
+                }
             }
 
         } catch (error: any) {
@@ -130,6 +140,8 @@ const App = () => {
         } finally {
             setIsLoading(false);
             setLoadingMessage('');
+            // Refresh CWD in UI
+            setCwd(process.cwd());
         }
     };
 
@@ -141,67 +153,57 @@ const App = () => {
 
     if (!apiKey) {
         return (
-            <Box flexDirection="column" padding={1}>
-                <Gradient name="pastel">
-                    <BigText text="Sasta Claude" font="block" align="center"/>
-                </Gradient>
-                <Box borderStyle="round" borderColor="cyan" flexDirection="column" padding={1}>
-                    <Text>Please enter your Gemini API Key:</Text>
-                    <TextInput 
-                        value={inputKey} 
-                        onChange={setInputKey} 
-                        onSubmit={handleKeySubmit}
-                        mask="*"
-                    />
-                </Box>
+            <Box flexDirection="column" padding={1} height="100%">
+               <Logo />
+               <Box flexGrow={1} />
+               <InputArea 
+                 onSubmit={handleKeySubmit}
+                 isLoading={false}
+                 loadingMessage=""
+                 isKeyInput={true}
+                 value=""
+                 onChange={() => {}}
+               />
             </Box>
         );
     }
 
     return (
-        <>  
-            <Static items={['branding']}>
-                {() => (
-                    <Box key="branding" paddingBottom={1}>
-                        <Gradient name="rainbow">
-                            <BigText text="Sasta Claude" font="block" align="center" />
-                        </Gradient>
-                        <Text color="gray" italic>The best "Sasta" AI CLI you'll ever use.</Text>
-                    </Box>
-                )}
+        <Box flexDirection="column" padding={1}>
+            {/* Header / Logo - maybe just once at top? */}
+            <Static items={['header']}>
+                {() => <Logo key="header" />}
             </Static>
 
-            <Static items={history}>
-                {(msg: Message) => (
-                    <Box key={msg.id} flexDirection="column" marginBottom={1}>
-                        <Text color={msg.role === 'user' ? 'green' : msg.role === 'model' ? 'blue' : 'yellow'} bold>
-                            {msg.role === 'user' ? 'You' : msg.role === 'model' ? 'Sasta Claude' : 'System'}:
-                        </Text>
-                        <Text color={msg.isError ? 'red' : 'white'}>
-                            {msg.content}
-                        </Text>
-                    </Box>
-                )}
-            </Static>
-
-            <Box flexDirection="column" paddingX={1}>
-                {isLoading ? (
-                    <Text color="yellow">
-                        <Spinner type="dots" /> {loadingMessage}
-                    </Text>
-                ) : (
-                    <Box>
-                        <Text color="green" bold>{'> '}</Text>
-                        <TextInput 
-                            value={inputValue}
-                            onChange={setInputValue}
-                            onSubmit={handleInputSubmit}
-                            placeholder="Type a message..."
+            {/* Scrollable History Area */}
+            <Box flexDirection="column" flexGrow={1} marginBottom={1}>
+                <Static items={history}>
+                    {(msg: Message) => (
+                        <MessageView 
+                            key={msg.id}
+                            role={msg.role}
+                            content={msg.content}
+                            isError={msg.isError}
                         />
-                    </Box>
-                )}
+                    )}
+                </Static>
             </Box>
-        </>
+
+            {/* Footer Area */}
+            <Box flexDirection="column" marginTop={1}>
+                {/* Status Bar */}
+                <StatusBar cwd={cwd} model={process.env.GEMINI_MODEL || "gemini-2.0-flash"} />
+                
+                {/* Input Area */}
+                <InputArea 
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onSubmit={handleInputSubmit}
+                    isLoading={isLoading}
+                    loadingMessage={loadingMessage}
+                />
+            </Box>
+        </Box>
     );
 };
 

@@ -1,6 +1,6 @@
 import { SchemaType } from '@google/generative-ai';
 import { writeFile } from '../fs.ts';
-import { ToolDefinition } from './types.ts';
+import type { ToolDefinition } from './types.ts';
 
 export const writeFileTool: ToolDefinition = {
     name: 'write_file',

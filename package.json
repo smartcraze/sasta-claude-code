@@ -1,8 +1,12 @@
 {
-  "name": "machine-coding1",
-  "module": "index.ts",
+  "name": "sasta-claude",
+  "version": "1.0.0",
+  "main": "src/sdk/index.ts",
+  "bin": {
+    "sasta-claude": "src/index.tsx"
+  },
   "type": "module",
-  "private": true,
+  "private": false,
   "devDependencies": {
     "@types/bun": "latest",
     "@types/express": "^5.0.6",

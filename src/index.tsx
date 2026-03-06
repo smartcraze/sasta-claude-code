@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 // src/index.ts
 import React from 'react';
 import { render } from 'ink';

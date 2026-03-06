@@ -1,6 +1,6 @@
 import { SchemaType } from '@google/generative-ai';
 import { readFile } from '../fs.ts';
-import { ToolDefinition } from './types.ts';
+import type { ToolDefinition } from './types.ts';
 
 export const readFileTool: ToolDefinition = {
     name: 'read_file',

@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
-import { getToolFunctions } from '../tools/index.ts';
+import { getToolFunctions } from '../tools/index';
 
 const SYSTEM_INSTRUCTION = `
 You are an expert, autonomous Coding Agent running in a CLI environment.
